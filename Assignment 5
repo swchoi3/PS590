@@ -1,0 +1,96 @@
+
+library("tm")
+install.packages("RTextTools")
+library(RTextTools)
+
+data= tweets_2
+
+set.seed(1234)                          # To fix the sample 
+samp_id = sample(1:nrow(data),              # do ?sample to examine the sample() func
+                 round(nrow(data)*.70),     # 70% records will be used for training
+                 replace = F)               # sampling without replacement.
+
+train = data[samp_id,]                      # 70% of training data set, examine struc of samp_id obj
+test = data[-samp_id,]                      # remaining 30% of training data set
+
+train.data = rbind(train,test)              # join the data sets
+train.data$content = tolower(train.data$content)  # Convert to lower case
+text = train.data$content                      
+text = removePunctuation(text)              # remove punctuation marks
+text = removeNumbers(text)                  # remove numbers
+text = stripWhitespace(text)                # remove blank space
+
+stpw2 = tm::stopwords('english')               # tm package stop word 
+comn  = unique(stpw2)# Union of two list #'solid state chemistry','microeconomics','linguistic'
+stopwords = unique(gsub("'"," ",comn))  # final stop word lsit after removing punctuation
+text  =  removeWords(text,stopwords) 
+
+cor = Corpus(VectorSource(text))            # Create text corpus
+dtm = DocumentTermMatrix(cor,               # Craete DTM
+                         control = list(weighting =             
+                                               function(x)
+                                                 weightTfIdf(x, normalize = F))) # IDF weighing
+
+training_codes = train.data$covid
+
+
+head(stpw2,10)
+
+container <- create_container(dtm,               # creates a 'container' obj for training, classifying, and analyzing docs
+                              t(training_codes), # labels or the Y variable / outcome we want to train on
+                              trainSize = 1:nrow(train), 
+                              testSize = (nrow(train)+1):nrow(train.data), 
+                              virgin = FALSE)
+
+models <- train_models(container,                  algorithms=c("SVM"))
+
+results <- classify_models(container, models)
+
+# building a confusion matrix to see accuracy of prediction results
+out = data.frame(model_sentiment = results$SVM_LABEL,    # rounded probability == model's prediction of Y
+                 model_prob = results$SVM_PROB,
+                 actual_sentiment = train.data$covid[(nrow(train)+1):nrow(train.data)])  # actual value of Y
+
+# dim(out); head(out); 
+# summary(out)           # how many 0s and 1s were there anyway?
+
+(z = as.matrix(table(out[,1], out[,3])))   # display the confusion matrix.
+
+(pct = ((z[1,1] + z[2,2])/sum(z))*100, 2))
+
+(pct = round(((z[1,1] + z[2,2])/sum(z))*100, 2))
+
+85.33%
+
+out=y
+
+pred= prediction(predictions=results$SVM_PROB, train.data$covid[(nrow(train)+1):nrow(train.data)])
+
+
+library(ROCR)
+RP.perf= performance(pred, "prec", "rec")
+
+plot (RP.perf);
+
+# ROC curve
+ROC.perf <- performance(pred, "tpr", "fpr");
+plot (ROC.perf);
+
+# ROC area under the curve
+auc.tmp <- performance(pred,"auc");
+auc <- as.numeric(auc.tmp@y.values)
+auc
+
+install.packages("ROCR")
+library(ROCR)
+
+
+performance(pred,"f")
+
+
+
+rc= (13/(13+3))
+pr= (13/(13+19))
+
+(2*(rc*pr)) / (rc+pr)
+
