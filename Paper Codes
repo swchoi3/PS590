@@ -1,0 +1,209 @@
+---
+title: "Untitled"
+author: "Kevin Choi"
+date: "3/2/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+```
+
+
+```{r}
+devtools::install_github("nebulae-co/colmaps")
+install.packages("tmap")
+install.packages(c("sf", "raster", "spData", "spDataLarge"))
+library(sf)
+library(tmap)
+library(raster)
+library(spData)
+library(colmaps)
+library(dplyr)
+library(tidyverse)
+library(readr)
+library(ggplot2)
+
+dat <- read_csv("datasets/New York/merged.csv")
+View(dat)
+
+muni_dat = municipios@data 
+muni_dat$codmpio = muni_dat$id
+dat_m = merge(dat, muni_dat, by="codmpio") ##only use for map generating!
+
+##transforming data to make 2018 & 2019 match 2017 for geo data
+
+dat_m$FARC1_0 = NA
+
+dat_m$FARC1_0 = ifelse(dat_m$year<2018, dat_m$FARC1, ifelse(dat_m$year>2017, dat_m$FARC1[dat_m$year==2017], NA))
+
+dat_m$FARC2_0 = ifelse(dat_m$year<2018, dat_m$FARC2, ifelse(dat_m$year>2017, dat_m$FARC2[dat_m$year==2017], NA))
+
+dat$FARC1_0 = ifelse(dat$year<2018, dat$FARC1, ifelse(dat$year>2017, dat$FARC1[dat$year==2017], NA))
+
+dat$FARC2_0 = ifelse(dat$year<2018, dat$FARC2, ifelse(dat$year>2017, dat$FARC2[dat$year==2017], NA))
+
+
+##creating the maps
+## map of H_coca 2012- 2019
+graph_1 <- dat_m %>%
+  filter(year >= 2012 & year<=2019) %>%
+  colmap(municipios, data=., var = "H_coca")
+
+graph_1 + facet_wrap(~year, nrow=2)
+## map of FARC control 2012-2019
+graph_2 = dat_m %>%
+  filter(year>=2012 & year<=2019) %>%
+  colmap(municipios, data=., var="FARC1_0")
+
+graph_2 + facet_wrap(~year, nrow=2)
+
+##map of H_coca in FARC controlled areas 2012-2019
+graph_3 = dat_m %>%
+  filter(year>=2012 & year<=2019) %>%
+  filter(FARC1_0==1) %>%
+  colmap(municipios, data=., var="H_coca")
+
+graph_3 + facet_wrap(~year, nrow=2)
+
+graph_4 = dat_m %>%
+  filter(year>=2012 & year<=2019) %>%
+  filter(highcoke==1) %>%
+  colmap(municipios, data=., var="H_coca")
+
+graph_4 + facet_wrap(~year, nrow=2)
+
+##total of 1,125 municipalities
+dat %>%
+filter(year==2002) %>%
+filter(FARC1_0==1) %>%
+count(codmpio)
+#156 which were under FARC control in 2002
+
+
+new_dat = dat %>%
+filter(year>=2002 & FARC1_0==1) %>%
+count(codmpio)
+new_dat2 =merge(new_dat, muni_dat, by="codmpio")
+
+#map for FARC
+graph_8 = new_dat2 %>%
+    colmap(municipios, data=., var="n") +  scale_fill_continuous(name="Years of FARC Control (2002-2019)", low = "#bcbddc", high = "#3f007d", na.value = "wheat")
+graph_8
+
+growth_rate = dat %>% # first sort by year
+  arrange(year) %>% 
+  mutate(Diff_year = year - lag(year),  # Difference in time (just in case there are gaps)
+         Diff_growth = H_coca - lag(H_coca), # Difference in route between years
+         Rate_percent = (Diff_growth / Diff_year)/H_coca * 100) # growth rate in percent
+
+
+graph_9 = growth_rate %>%
+  filter(year>=2012 & year<=2019) %>%
+filter(FARC1_0==1) %>%
+colmap(municipios, data=., data_id = "codmpio", var="Diff_growth") +  scale_fill_continuous(name="Changes in Production (2012-2019) ", low = "#0000ff", high = "#fc0000", na.value = "wheat")
+
+graph_9 + facet_wrap(~year, nrow=2)
+
+
+
+
+library(stargazer)
+library(psych)
+library(hrbrthemes)
+library(xtable)
+
+summarystats_coca = as.data.frame(describe(dat$H_coca))
+summarystats_farc = as.data.frame(describe(dat$FARC1_0))
+
+municipios@data
+
+
+ggplot(dat, aes(x=year, )) + geom_bar(position="stack", stat="identity")
+
+new_dat = 
+  
+dat %>% count(codmpio)
+
+##total of 1,125 municipalities
+dat %>%
+filter(year==2002) %>%
+filter(FARC1_0==1) %>%
+count(codmpio)
+#156
+new_dat = dat %>%
+filter(year>=2002 & FARC1_0==1) %>%
+count(codmpio)
+new_dat2 =merge(new_dat, muni_dat, by="codmpio")
+
+#map for FARC
+graph_8 = new_dat2 %>%
+    colmap(municipios, data=., var="n") +  scale_fill_continuous(name="Years of FARC Control (2002-2019)", low = "#bcbddc", high = "#3f007d", na.value = "wheat")
+graph_8
+
+dat$increase_coke= ifelse(dat$H_coca)
+
+growth_rate = dat %>% # first sort by year
+  arrange(year) %>% 
+  mutate(Diff_year = year - lag(year),  # Difference in time (just in case there are gaps)
+         Diff_growth = H_coca - lag(H_coca), # Difference in route between years
+         Rate_percent = (Diff_growth / Diff_year)/H_coca * 100) # growth rate in percent
+
+
+graph_9 = growth_rate %>%
+  filter(year>=2012 & year<=2019) %>%
+filter(FARC1_0==1) %>%
+colmap(municipios, data=., data_id = "codmpio", var="Diff_growth") +  scale_fill_continuous(name="Changes in Production (2012-2019) ", low = "#0000ff", high = "#fc0000", na.value = "wheat")
+
+graph_9 + facet_wrap(~year, nrow=2)
+
+
+#
+```
+
+
+
+
+
+
+
+
+
+
+```{r}
+stargazer(summarystats_coca)
+
+### graphs for time series
+
+
+
+
+chart_1 = ggplot(dat, aes(fill=as.factor(FARC1_0), y=H_coca, x=year)) + geom_bar(position="stack", stat="identity") + geom_vline(xintercept=2017) + scale_fill_discrete(name="FARC Control_1", breaks=c("0", "1"), labels=c("0", "1"))
+
+
+chart_1 = ggplot(dat_m, aes(fill=as.factor(FARC1_0), y=H_coca, x=year)) + geom_bar(position="stack", stat="identity") + geom_vline(xintercept=2017) + scale_fill_discrete(name="FARC Control_1", breaks=c("0", "1"), labels=c("0", "1"))
+
+chart_2 = ggplot(dat_m, aes(fill=as.factor(FARC2_0), y=H_coca, x=year)) + geom_bar(position="stack", stat="identity") + geom_vline(xintercept=2017) + scale_fill_discrete(name="FARC Control_2", breaks=c("0", "1"), labels=c("0", "1"))
+
+chart_3 = ggplot(dat_m, aes(fill=as.factor(FARC1_0), y=coca, x=year)) + geom_bar(position="stack", stat="identity") + geom_vline(xintercept=2017) + scale_fill_discrete(name="FARC Control_1", breaks=c("0", "1"), labels=c("0", "1"))
+
+chart_4 = ggplot(dat_m, aes(fill=as.factor(FARC2_0), y=coca, x=year)) + geom_bar(position="stack", stat="identity") + geom_vline(xintercept=2017) + scale_fill_discrete(name="FARC Control_2", breaks=c("0", "1"), labels=c("0", "1"))
+
+##simplistic model
+
+library(lattice)
+
+ggplot(dat, aes(x=year, y=H_coca, color=as.factor(FARC1_0))) + geom_point() + geom_line(aes(y = fitglm), size = 1)
+
+
+
+
+
+summary(model)
+
+
+
+library(cowplot)
+plot_grid(chart_1, chart_2, nrow=2)
+plot_grid(chart_3, chart_4, nrow=2)
+
+```
